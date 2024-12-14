@@ -1,3 +1,4 @@
+import time
 from utils import read_lines
 
 SAMPLE_INPUT = """89010123
@@ -51,4 +52,7 @@ def solve_part1():
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     solve_part1()
+    end_time = time.time()
+    print(f"Execution time: {end_time - start_time} seconds")
