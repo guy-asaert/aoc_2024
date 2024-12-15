@@ -25,10 +25,10 @@ def solve_part1():
 
     machines = []
     # for report_line in SAMPLE_INPUT.split("\n"):
-    for report_line in read_lines(__file__):
-        if report_line: 
+    for report_line in read_lines(__file__):r
+        if 'Button A' in report_line or 'Button B' in report_line or 'Prize' in report_line:
             numbers = re.findall(r'\d+', report_line)
-            if 'Button A' in report_line:
+                    if 'Button A' in report_line:
                 ax, ay = numbers
             elif 'Button B' in report_line:
                 bx, by = numbers
