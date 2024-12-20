@@ -99,7 +99,7 @@ def solve_part1():
         if (path.row, path.col) in path.path or path.cost > min_solution_cost:
             continue
 
-        t ile_min_cost[(path.row, path.col)] = path.cost
+        tile_min_cost[(path.row, path.col)] = path.cost
 
         if (path.row, path.col) == end_goal:
             solutions.append(path)
