@@ -88,5 +88,37 @@ def solve_part1():
     shortest_path_length = dijkstra(grid, start_pos, target_pos)
     print(f"Shortest path length: {shortest_path_length}")
 
+
+def solve_part2():
+    # grid_width = 7
+    # grid_height = 7
+    grid_width = 71
+    grid_height = 71
+
+    bytes = list()
+    # for report_line in SAMPLE_INPUT.split("\n"):
+    for report_line in read_lines(__file__):
+        bytes.append(tuple(int(i) for i in report_line.split(",")))
+
+    lower_bound = 0
+    upper_bound = len(bytes)
+
+    while lower_bound < upper_bound:
+        mid = (lower_bound + upper_bound) // 2
+        grid = [[0] * grid_width for _ in range(grid_height)]
+        for x, y in bytes[:mid]:
+            grid[y][x] = '#'
+
+        start_pos = (0, 0)
+        target_pos = (grid_width-1, grid_height-1)
+        shortest_path_length = dijkstra(grid, start_pos, target_pos)
+        if shortest_path_length == float('inf'):
+            upper_bound = mid
+        else:
+            lower_bound = mid + 1
+
+    print(f"First bytes that blocks the path: {bytes[mid]}")
+
+
 if __name__ == "__main__":
-    solve_part1()
+    solve_part2()
