@@ -1,91 +1,123 @@
-from utils import read_lines
-from itertools import permutations
+import cProfile
+from functools import lru_cache
+from itertools import permutations, product
 
-SAMPLE_INPUT = """029A
-980A
-179A
-456A
-379A"""
 
-DOOR_KEYPAD = {
-    '7': (0, 0),
-    '8': (1, 0),
-    '9': (2, 0),
-    '4': (0, 1),
-    '5': (1, 1),
-    '6': (2, 1),
+NUMERIC_PAD = {
+    '0': (1, 3),
     '1': (0, 2),
     '2': (1, 2),
     '3': (2, 2),
-    '' : (0, 3),
-    '0': (1, 3),
-    'A': (2, 3)
+    '4': (0, 1),
+    '5': (1, 1),
+    '6': (2, 1),
+    '7': (0, 0),
+    '8': (1, 0),
+    '9': (2, 0),
+    'A': (2, 3),
+    }
+
+BAD_NUMERIC_PAD_SEQUENCE = {
+    '7': 'vvv',
+    '4': 'vv',
+    '1': 'v',
+    '0': '<',
+    'A': '<<',
 }
 
-ROBOT_KEYPAD = {
-    '' : (0, 0),
-    '^': (1, 0),
-    'A': (2, 0),
+DIRECTION_PAD = {
     '<': (0, 1),
-    'v': (1, 1),
     '>': (2, 1),
+    '^': (1, 0),
+    'v': (1, 1),
+    'A': (2, 0),
+}
+
+BAD_DIRECTION_PAD_SEQUENCE = {
+    '^': '<',
+    'A': '<<',
+    '<': '^',
 }
 
 
-def type_code(key_pad_code, key_pads):
+KEY_PADS = ((NUMERIC_PAD, BAD_NUMERIC_PAD_SEQUENCE), (DIRECTION_PAD, BAD_DIRECTION_PAD_SEQUENCE))
 
-    if not key_pads:
-        return key_pad_code
+@lru_cache(maxsize=None)
+def move_from_to(from_key, to_key, pad_index):
+    pad, bad_pattern = KEY_PADS[pad_index]
+    from_location = pad.get(from_key)
+    to_location = pad.get(to_key)
+    if not from_location:
+        raise ValueError(f"Invalid key {from_key}")
+    if not to_location:
+        raise ValueError(f"Invalid key {to_key}")
     
-    current_key = 'A'
-    current_key_pad = key_pads[0]
+    x_offset, y_offset = to_location[0] - from_location[0], to_location[1] - from_location[1]
+    direction_taps = abs(x_offset) * ('<' if x_offset < 0 else '>') + abs(y_offset) * ('^' if y_offset < 0 else 'v')
+    permutations_of_taps = [''.join(k) for k in set(permutations(direction_taps))]
+    bad_pattern = bad_pattern.get(from_key, "xxxxxxxxxx")
+    permutations_of_taps = [tap + 'A' for tap in permutations_of_taps if not tap.startswith(bad_pattern)]
 
-    all_key_pad_codes = []
-    for next_key in key_pad_code:
-        offset_x = current_key_pad[next_key][0] - current_key_pad[current_key][0]
-        offset_y = current_key_pad[next_key][1] - current_key_pad[current_key][1]
+    # keep the shortest sequence
+    shortest_sequence = min(len(tap) for tap in permutations_of_taps)
+    permutations_of_taps = [tap for tap in permutations_of_taps if len(tap) == shortest_sequence]
 
-        single_key_code = []
+    return permutations_of_taps
 
-        offset_seq = ''
-        if offset_x != 0:
-            if offset_x < 0:
-                offset_seq += '<' * abs(offset_x)
-            elif offset_x > 0:
-                offset_seq += '>' * offset_x
+def tap_code(code, pad_index):
+    taps = []
+    code = 'A' + code
+    for i in range(1, len(code)):
+        taps += [move_from_to(code[i - 1], code[i], pad_index)]
+    return taps
 
-        if offset_y != 0:
-            if offset_y < 0:
-                offset_seq += '^' * abs(offset_y)
-            elif offset_y > 0:
-                offset_seq += 'v' * offset_y
+def main():
+#     codes = """029A
+# 980A
+# 179A
+# 456A
+# 379A"""
 
-        print(f'Type {next_key} from {current_key} with offset {offset_seq}')
-        for code in set(permutations(offset_seq)):
-            tap_code = ''.join(code) + 'A'
-            print(f'Code: {tap_code}')
-            single_key_code.append(type_code(tap_code, key_pads[1:]))
+#     codes = """805A
+# 682A
+# 671A
+# 973A
+# 319A"""
 
-        all_key_pad_codes.append(single_key_code)
-        current_key = next_key
-
-    return all_key_pad_codes
-
-
-
-def solve_part1():
+    codes = """319A"""
 
     complexity = 0
+    for code in codes.split('\n'):
+        all_tabs = set()
+        taps = tap_code(code, 0)
+        for tap in product(*taps):
+            direction_taps = ''.join(tap)
+            # print(direction_taps)
+            all_tabs.add(direction_taps)
 
-    key_pads = [DOOR_KEYPAD, ROBOT_KEYPAD, ROBOT_KEYPAD, ROBOT_KEYPAD]
+        all_direction_taps = set()
+        for i in range(2):
+            print(f'Iteration {i}')
+            for direction_taps in all_tabs:
+                direction_direction_taps = tap_code(direction_taps, 1)
+                for direction_direction_tap in product(*direction_direction_taps):
+                    next_level_direction_tabs = ''.join(direction_direction_tap)
+                    all_direction_taps.add(next_level_direction_tabs)
 
-    for door_paypad_code in SAMPLE_INPUT.split('\n'):
-        ret = type_code(door_paypad_code, key_pads)
-        pass
+            all_tabs = all_direction_taps
+            # only keep the shortest sequences
+            all_direction_taps = set()
+        
+        print(f'Code {code} has {len(all_tabs)} possible taps')
+        shortest_sequence = min(len(tap) for tap in all_tabs)
+        complexity += shortest_sequence * int(code[:3])
 
-
-    print(f'Complexity: {complexity}')
+    print(complexity)
 
 
 if __name__ == "__main__":
-    solve_part1()
+    # profiler = cProfile.Profile()
+    # profiler.enable()
+    main()
+    # profiler.disable()
+    # profiler.print_stats(sort='time')    

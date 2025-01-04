@@ -64,10 +64,10 @@ def dijkstra(start, end, walls):
     
     return None
 
-# class CheatStatus(Enum):
-#     NOT_CHEATED = 0
-#     CHEATING = 1
-#     CHEATED = 2
+class CheatStatus(Enum):
+    NOT_CHEATED = 0
+    CHEATING = 1
+    CHEATED = 2
 
 
 OFFSETS = [(0, 1), (0, -1), (1, 0), (-1, 0)]
@@ -119,7 +119,8 @@ class Path:
     cheat_count: int = 0
     # cheat_status: CheatStatus = CheatStatus.NOT_CHEATED
 
-def find_paths(all_paths, path, start, end, walls, grid_width, grid_height, cheat_length = 0, best_path = float('inf')):
+def find_paths(all_paths, path, start, end, walls, 
+               grid_width, grid_height, cheat_length = 0, best_path = float('inf')):
 
     if len(path.path_travelled) >= best_path:
         return
@@ -135,8 +136,10 @@ def find_paths(all_paths, path, start, end, walls, grid_width, grid_height, chea
         if (path.current_x + direction[0], path.current_y + direction[1]) in path.path_travelled:
             continue
 
-        neighbour = Path(path.current_x + direction[0], path.current_y + direction[1], path.path_travelled, None, None, path.cheat_count)
-        if neighbour.current_x < 0 or neighbour.current_x >= grid_height or neighbour.current_y < 0 or neighbour.current_y >= grid_width:
+        neighbour = Path(path.current_x + direction[0], path.current_y + direction[1], 
+                         path.path_travelled, None, None, path.cheat_count)
+        if neighbour.current_x < 0 or neighbour.current_x >= grid_height or \
+           neighbour.current_y < 0 or neighbour.current_y >= grid_width:
             # outside the grid
             continue
 
@@ -187,6 +190,8 @@ def solve_part1():
 
     grid_width = max(col for row, col in walls) + 1
     grid_height = max(row for row, col in walls) + 1
+
+    print(f'Path locations: {grid_width * grid_height - len(walls)}')
 
     all_paths = dict()
     find_paths(all_paths, Path(start[0], start[1]), start, end, walls, grid_width, grid_height, 0)
