@@ -2,12 +2,17 @@
 import cProfile
 from functools import lru_cache
 
+CODES = """029A
+980A
+179A
+456A
+379A"""
 
-CODES = """805A
-682A
-671A
-973A
-319A"""
+# CODES = """805A
+# 682A
+# 671A
+# 973A
+# 319A"""
 
 NUMERIC_PAD = {
     '0': (1, 3),
@@ -67,20 +72,18 @@ def move_from_to(from_key, to_key, pad_index, order_preference):
 
     return direction_taps + 'A'
 
-
-def move_from_to_pattern(pattern, pad_index, order_preference):
+@lru_cache(maxsize=None)
+def move_from_to_pattern(current_key, pattern, pad_index, order_preference):
     key_pad_key_presses_list = []
-    current_key = pattern[0]
-    for key in pattern[1:]:
+    for key in pattern:
         # print(f"On {current_key} / Go to and tap {key}")
-        key_pad_key_presses_list.append(move_from_to(current_key, key, 1, DIRECTION_ORDER_PREFERENCE))
+        key_pad_key_presses_list.append(move_from_to(current_key, key, pad_index, order_preference))
         current_key = key
 
-    return key_pad_key_presses_list
+    return key_pad_key_presses_list, current_key
 
 
 def main():
-
     complexity = 0
     for code in CODES.split('\n'):
         key_presses_list = []
@@ -95,22 +98,26 @@ def main():
         # print(key_presses_v2)
 
         # key_presses = key_presses_v2
-        ROBOTS = 2
+        ROBOTS = 25
         for i in range(ROBOTS):
             key_pad_key_presses_list = []
 
             current_key = 'A'
+            # key_presses_list[0] = 'A' + key_presses_list[0]
             for key_presses in key_presses_list:
-                for key in key_presses:
-                    # print(f"On {current_key} / Go to and tap {key}")
-                    key_pad_key_presses_list.append(move_from_to(current_key, key, 1, DIRECTION_ORDER_PREFERENCE))
-                    current_key = key
+                presses, current_key = move_from_to_pattern(current_key, key_presses, 1, DIRECTION_ORDER_PREFERENCE)
+                key_pad_key_presses_list.extend(presses)
+                # for key in key_presses:
+                #     print(f"On {current_key} / Go to and tap {key}")
+                #     key_pad_key_presses_list.append(move_from_to(current_key, key, 1, DIRECTION_ORDER_PREFERENCE))
+                #     current_key = key
             key_presses_list = key_pad_key_presses_list
             print((f'Robot {i + 1} key presses list: {len(key_presses_list)}'))
 
             # print(key_presses)
-        complexity += sum([len(key_presses) for key_presses in key_presses_list]) * int(code[:-1])
-        print(f"Complexity for {code}: {len(key_presses)} * {int(code[:-1])}")
+        code_complexity = sum([len(key_presses) for key_presses in key_presses_list])
+        complexity += (code_complexity * int(code[:-1]))
+        print(f"Complexity for {code}: {code_complexity} * {int(code[:-1])}")
 
 
     print(f"Complexity: {complexity}")
@@ -127,9 +134,9 @@ def main():
 
 
 if __name__ == "__main__":
-    profiler = cProfile.Profile()
-    profiler.enable()
+    # profiler = cProfile.Profile()
+    # profiler.enable()
     main()
-    profiler.disable()
-    profiler.print_stats(sort='time')
+    # profiler.disable()
+    # profiler.print_stats(sort='time')
 
