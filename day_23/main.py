@@ -1,6 +1,6 @@
 from utils import read_lines
 from itertools import combinations
-import networkx as nx
+# import networkx as nx
 
 SAMPLE_INPUT = """kh-tc
 qp-kh
@@ -101,45 +101,42 @@ def solve_part1():
 
 def solve_part2():
 
-    connections = set()
+    edges = set()
     vertices = set()
     # for row, report_line in enumerate(SAMPLE_INPUT.split("\n")):
     for row, report_line in enumerate(read_lines(__file__)):
         from_node, to_node = report_line.split("-")
         # G.add_edge(from_node, to_node)
-        connections.add((from_node, to_node))
-        connections.add((to_node, from_node))
+        edges.add((from_node, to_node))
+        edges.add((to_node, from_node))
         vertices.add(from_node)
         vertices.add(to_node)
 
 
-    edge_counnt = dict()
+    connecting_vertices = dict()
     for node in vertices:
-        connection_count = len([from_node for from_node, _ in connections if from_node == node])
-        edge_counnt[node] = connection_count
+        vertices_i_connect_to = [to_node for from_node, to_node in edges if from_node == node]
+        connecting_vertices[node] = vertices_i_connect_to
 
-    is_triangle = False
-    for node_count in range(5, len(vertices)):
-        print(f'Checking {node_count} nodes')
-
-
+    for vertex in vertices:
         # filter the nodes thst have at least node_count connections
         check_vertices = []
+        maybe_clique = [vertex] + connecting_vertices[vertex]
 
-        for nodes in combinations(check_vertices, node_count):
-            is_triangle = True
-            for vertex1, vertex2 in combinations(nodes, 2):
-                if (vertex1, vertex2) not in connections:
-                    is_triangle = False
-                    break
+        is_clique = True
+        for vertex1, vertex2 in combinations(maybe_clique, 2):
+            if (vertex1, vertex2) not in edges:
+                is_clique = False
+                break
 
-            if is_triangle:
-                print(f'Triangle: {sorted(nodes)}')
+            if is_clique:
+                print(f"Triangle: {','.join(sorted(maybe_clique))}")
                 break
                 # print(f'Triangle: {three_nodes}')
-        if is_triangle:
+        if is_clique:
             break
 
 
 if __name__ == "__main__":
     solve_part2()
+    print("All done")
