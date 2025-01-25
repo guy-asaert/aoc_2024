@@ -120,21 +120,23 @@ def solve_part2():
 
     for vertex in vertices:
         # filter the nodes thst have at least node_count connections
-        check_vertices = []
+        # check_vertices = []
         maybe_clique = [vertex] + connecting_vertices[vertex]
 
         is_clique = True
-        for vertex1, vertex2 in combinations(maybe_clique, 2):
-            if (vertex1, vertex2) not in edges:
-                is_clique = False
-                break
+
+        for subgroup in combinations(maybe_clique, len(maybe_clique) - 1):
+            for vertex1, vertex2 in combinations(subgroup, 2):
+                if (vertex1, vertex2) not in edges:
+                    is_clique = False
+                    break
 
             if is_clique:
-                print(f"Triangle: {','.join(sorted(maybe_clique))}")
+                print(f"Triangle: {','.join(sorted(subgroup))}")
                 break
                 # print(f'Triangle: {three_nodes}')
-        if is_clique:
-            break
+        # if is_clique:
+        #     break
 
 
 if __name__ == "__main__":
