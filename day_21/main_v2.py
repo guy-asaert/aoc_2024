@@ -2,17 +2,17 @@
 import cProfile
 from functools import lru_cache
 
-CODES = """029A
-980A
-179A
-456A
-379A"""
+# CODES = """029A
+# 980A
+# 179A
+# 456A
+# 379A"""
 
-# CODES = """805A
-# 682A
-# 671A
-# 973A
-# 319A"""
+CODES = """805A
+682A
+671A
+973A
+319A"""
 
 NUMERIC_PAD = {
     '0': (1, 3),
@@ -98,7 +98,10 @@ def main():
         # print(key_presses_v2)
 
         # key_presses = key_presses_v2
-        ROBOTS = 25
+        PART_ONE_ROBOTS = 2
+        PART_TWO_ROBOTS = 25
+        ROBOTS = PART_ONE_ROBOTS
+
         for i in range(ROBOTS):
             key_pad_key_presses_list = []
 
