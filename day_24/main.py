@@ -5,6 +5,7 @@ from enum import Enum
 from itertools import combinations
 import cProfile
 from typing import Dict, List, Optional, Tuple
+from collections import Counter, namedtuple
 
 SAMPLE_INPUT = """x00: 1
 x01: 0
@@ -80,6 +81,7 @@ class Operation(Enum):
     OR = 2
     XOR = 3
 
+Gate = namedtuple("Gate", "Wire1 Wire2 Operation")
 
 def wires_to_int(wire_values: List[bool]) -> int:
     result = 0
@@ -326,13 +328,25 @@ def solve_part2() -> None:
             wire, value = report_line.split(': ')
         elif '->' in report_line:
             wire1, operation, wire2, _, wire3 = report_line.split()
-            gates[wire3] = (wire1, Operation[operation], wire2)
+            gates[wire3] = Gate(wire1, wire2, Operation[operation])
             wire_values[wire1] = None
             wire_values[wire2] = None
             wire_values[wire3] = None
     x_wires = sorted([wire for wire in wire_values.keys() if wire.startswith('x')])
     y_wires = sorted([wire for wire in wire_values.keys() if wire.startswith('y')])
     z_wires = sorted([wire for wire in wire_values.keys() if wire.startswith('z')])
+
+    count_gates = Counter()
+    for node, gate in gates.items():
+        count_gates[gate.Operation] += 1
+
+
+
+
+
+
+
+
 
     check_wires = check_circuit(wire_values, gates, x_wires, y_wires, z_wires)
     print(f"check_wires: {','.join(sorted(check_wires))}")
