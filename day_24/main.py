@@ -5,7 +5,8 @@ from enum import Enum
 from itertools import combinations
 import cProfile
 from typing import Dict, List, Optional, Tuple
-from collections import Counter, namedtuple
+from collections import Counter, defaultdict, namedtuple
+import networkx as nx
 
 SAMPLE_INPUT = """x00: 1
 x01: 0
@@ -84,6 +85,16 @@ class Operation(Enum):
 Gate = namedtuple("Gate", "Wire1 Wire2 Operation")
 
 def wires_to_int(wire_values: List[bool]) -> int:
+    """
+    Converts a list of boolean wire values to an integer.
+    Each boolean value in the list represents a binary digit (bit), where True is 1 and False is 0.
+    The list is interpreted in reverse order, with the first element being the least significant bit.
+    Args:
+        wire_values (List[bool]): A list of boolean values representing binary digits.
+    Returns:
+        int: The integer representation of the binary number.
+    """
+
     result = 0
     for wire in reversed(wire_values):
         if wire:
@@ -94,42 +105,59 @@ def wires_to_int(wire_values: List[bool]) -> int:
 
 
 def int_to_wires(value: int, length: int) -> List[bool]:
+    """
+    Converts an integer to a list of boolean values representing its binary form.
+    Args:
+        value (int): The integer value to convert.
+        length (int): The length of the resulting list of boolean values.
+    Returns:
+        List[bool]: A list of boolean values representing the binary form of the input integer.
+                    Each boolean value corresponds to a bit in the binary representation, with the
+                    least significant bit at index 0.
+    """
+
     return [bool(value & (1 << i)) for i in range(length)]
 
 
 def calculate_wire_value(
-        wire: str, wire_values: Dict[str, Optional[bool]], gates: Dict[str, Tuple[str, Operation, str]], 
+        wire: str, all_wire_values: Dict[str, Optional[bool]], gates: Dict[str, Tuple[str, Operation, str]], 
         depth: int = 0) -> Optional[bool]:
     if depth > 100:
         return None
 
-    wire1, operation, wire2 = gates[wire]
-    if wire_values[wire1] is None:
-        wire_values[wire1] = calculate_wire_value(wire1, wire_values, gates, depth + 1)
+    gate = gates[wire]
+    if all_wire_values[gate.Wire1] is None:
+        all_wire_values[gate.Wire1] = calculate_wire_value(gate.Wire1, all_wire_values, gates, depth + 1)
 
-    if wire_values[wire2] is None:
-        wire_values[wire2] = calculate_wire_value(wire2, wire_values, gates, depth + 1)
+    if all_wire_values[gate.Wire2] is None:
+        all_wire_values[gate.Wire2] = calculate_wire_value(gate.Wire2, all_wire_values, gates, depth + 1)
 
-    if wire_values[wire1] is None or wire_values[wire2] is None:
+    if all_wire_values[gate.Wire1] is None or all_wire_values[gate.Wire2] is None:
         return None
 
-    if operation == Operation.AND:
-        return wire_values[wire1] and wire_values[wire2]
-    elif operation == Operation.OR:
-        return wire_values[wire1] or wire_values[wire2]
-    elif operation == Operation.XOR:
-        return wire_values[wire1] ^ wire_values[wire2]
+    if gate.Operation == Operation.AND:
+        return all_wire_values[gate.Wire1] and all_wire_values[gate.Wire2]
+    elif gate.Operation == Operation.OR:
+        return all_wire_values[gate.Wire1] or all_wire_values[gate.Wire2]
+    elif gate.Operation == Operation.XOR:
+        return all_wire_values[gate.Wire1] ^ all_wire_values[gate.Wire2]
     else:
-        raise ValueError(f'Unknown operation: {operation}')
+        raise ValueError(f'Unknown operation: {gate.Operation}')
 
 
-def resolve_circuit(
+def execute_circuit(
         wire_values: Dict[str, Optional[bool]], gates: Dict[str, Tuple[str, Operation, str]], 
         z_wires: List[str]) -> Optional[Dict[str, Optional[bool]]]:
-    """Resolve the circuit and return the wire values for the z wires
-    :param wire_values: dictionary of wire name to wire value
-    :param gates: dictionary of wire name to (wire1, operation, wire2)
-    :param z_wires: list of z wires
+    """
+    Resolve the circuit and return the wire values for the z wires.
+
+    Args:
+        wire_values (Dict[str, Optional[bool]]): Dictionary of wire name to wire value.
+        gates (Dict[str, Tuple[str, Operation, str]]): Dictionary of wire name to (wire1, operation, wire2).
+        z_wires (List[str]): List of z wires.
+
+    Returns:
+        Optional[Dict[str, Optional[bool]]]: The resolved wire values for the z wires, or None if the circuit cannot be resolved.
     """
     for wire in z_wires:
         wire_values[wire] = calculate_wire_value(wire, wire_values, gates)
@@ -151,7 +179,7 @@ def solve_part1() -> None:
         # print(report_line)
         elif '->' in report_line:
             wire1, operation, wire2, _, wire3 = report_line.split()
-            gates[wire3] = (wire1, Operation[operation], wire2)
+            gates[wire3] = Gate(wire1, wire2, Operation[operation])
             if wire1 not in wire_values:
                 wire_values[wire1] = None
             if wire2 not in wire_values:
@@ -160,7 +188,7 @@ def solve_part1() -> None:
                 wire_values[wire3] = None
 
     z_wires = sorted([wire for wire in wire_values if wire.startswith('z')])
-    wire_values = resolve_circuit(wire_values, gates, z_wires)
+    wire_values = execute_circuit(wire_values, gates, z_wires)
 
     print(f'Result: {wires_to_int([wire_values[wire] for wire in z_wires])}')
 
@@ -226,7 +254,7 @@ def check_circuit(
         for i, wire in enumerate(y_wires):
             wire_values[wire] = y_value[i]
 
-        new_wire_values = resolve_circuit(wire_values, gates, z_wires)
+        new_wire_values = execute_circuit(wire_values, gates, z_wires)
 
         if not new_wire_values:
             return None
@@ -251,7 +279,7 @@ def check_circuit(
     return check_wires
 
 
-def validate_circuit(
+def check_if_circuit_is_correct(
         wire_values: Dict[str, Optional[bool]], gates: Dict[str, Tuple[str, Operation, str]], 
         x_wires: List[str], y_wires: List[str], z_wires: List[str]) -> bool:
     """ Check if the circuit correctly calculates the sum of x and y
@@ -267,9 +295,6 @@ def validate_circuit(
     def calc(x: int, y: int) -> int:
         return x + y
 
-    # only swap wires that are part of the circuit that connect to z wires that give an incorrect result
-    max_value = 1 << len(x_wires)
-
     for i_wire in range(len(x_wires)):
         for wire in wire_values.keys():
             wire_values[wire] = None
@@ -281,7 +306,7 @@ def validate_circuit(
         for i, wire in enumerate(y_wires):
             wire_values[wire] = y_value[i]
 
-        new_wire_values = resolve_circuit(wire_values, gates, z_wires)
+        new_wire_values = execute_circuit(wire_values, gates, z_wires)
         if not new_wire_values:
             return False
 
@@ -318,13 +343,23 @@ def get_all_pairings(elements: Tuple[str, ...]) -> List[List[Tuple[str, str]]]:
     return pairings
 
 
+def check_ancestors(ancestors, x_wires, y_wires) -> None:
+    no_ancester_nodes = [wire for wire, count in ancestors.items() if count == 0]
+    for x_wire in x_wires:
+        if x_wire not in no_ancester_nodes:
+            print(f'x_wire {x_wire} should have no ancestors')
+    for y_wire in y_wires:
+        if y_wire not in no_ancester_nodes:
+            print(f'y_wire {y_wire} should have no ancestors')
+
 def solve_part2() -> None:
     gates: Dict[str, Tuple[str, Operation, str]] = dict()
     wire_values: Dict[str, Optional[bool]] = dict()
 
     # for row, report_line in enumerate(SAMPLE_INPUT2.split("\n")):
-    for row, report_line in enumerate(read_lines(__file__)):
+    for _, report_line in enumerate(read_lines(__file__)):
         if ':' in report_line:
+            # ignore the value. not needed here
             wire, value = report_line.split(': ')
         elif '->' in report_line:
             wire1, operation, wire2, _, wire3 = report_line.split()
@@ -332,45 +367,116 @@ def solve_part2() -> None:
             wire_values[wire1] = None
             wire_values[wire2] = None
             wire_values[wire3] = None
+    
     x_wires = sorted([wire for wire in wire_values.keys() if wire.startswith('x')])
     y_wires = sorted([wire for wire in wire_values.keys() if wire.startswith('y')])
     z_wires = sorted([wire for wire in wire_values.keys() if wire.startswith('z')])
 
-    count_gates = Counter()
+    gates_out_wires = defaultdict(list)
+    DG = nx.DiGraph()
     for node, gate in gates.items():
-        count_gates[gate.Operation] += 1
+        gates_out_wires[gate.Operation].append(node)
+        DG.add_edge(gate.Wire1, node)
+        DG.add_edge(gate.Wire2, node)
+
+    # check if all the z wires are connected to the same number of ancestors
+    ancestors = Counter()
+    previous = 6
+    for wire in wire_values.keys():
+        ancestors[wire] = len(nx.ancestors(DG, wire))
+        
+    # nothing fouund here btw
+    check_ancestors(ancestors, x_wires, y_wires)
+
+    # looks like z16, z21, z31 and z37 have a problem
+    swap_wires_z = ['z16', 'z21', 'z31', 'z37']
+    
+    wires_to_swap = set()
+    for wire in swap_wires_z:
+        wires_to_swap.add(wire)
+        wires_to_swap.update([wire for wire in nx.ancestors(DG, wire) if not wire.startswith('x') and not wire.startswith('y')])
+        print(f"wire: {wire}, ancestors: {sorted(list(nx.ancestors(DG, wire)))}")
+
+    pass
 
 
 
 
+    previous = ancestors[z_wires[0]]
+    for z_wire in z_wires[1:]:
+        if ancestors[z_wire] - previous != 6:
+            print(f"z_wire {z_wire} differs from previous by {ancestors[z_wire] - previous}")
+        previous = ancestors[z_wire]
+
+    non_xyz_ancestors = Counter()
+    for wire, count in ancestors.items():
+        if wire not in x_wires and wire not in y_wires and wire not in z_wires:
+            non_xyz_ancestors[count] += 1
+    
+    def sum_circuit(x_value: int, y_value: int, x_wires, y_wires, z_wires) -> int:
+        for wire, value in zip(x_wires, int_to_wires(x_value, len(x_wires))):
+            wire_values[wire] = value
+        for wire, value in zip(y_wires, int_to_wires(y_value, len(y_wires))):
+            wire_values[wire] = value
+
+        out_wires = execute_circuit(wire_values, gates, z_wires)
+        return wires_to_int([out_wires[wire] for wire in z_wires])
+
+    # run some test values through the circuit
+    x_value = 0b111111111111111111111111111111111111111111111
+    y_value = 0 # 0b111111111111111111111111111111111111111111111
+
+    the_sum = sum_circuit(x_value, y_value, x_wires, y_wires, z_wires)
+    if the_sum != x_value + y_value:
+        difference = the_sum ^ (x_value + y_value)
+        print(f"Expected {x_value + y_value}, got {the_sum}: difference: {bin(difference)}")
+        # print(f"The circuit is not working correctly. Expected {x_value + y_value}, got {the_sum}")
+    print(f"sum: {sum_circuit(x_value, y_value, x_wires, y_wires, z_wires)}")
+
+    #  0b1111111110000001111111110111110000000000000000
+    #    5432109876543210987654321098765432109876543210
+
+    for wire, value in zip(x_wires, int_to_wires(x_value, len(x_wires))):
+        wire_values[wire] = value
+    for wire, value in zip(y_wires, int_to_wires(y_value, len(y_wires))):
+        wire_values[wire] = value
+
+    check_wires = execute_circuit(wire_values, gates, z_wires)
+    binary_code = ''.join(['1' if wire_values[wire] else '0' for wire in reversed(z_wires)])
+
+    # look at z16, z21, z31
+    print(f'Result: {binary_code}') # 1111111111111101111111110111111111111111111110
+
+    z_16_ancestors = nx.ancestors(DG, 'z16')
 
 
+    z_21_ancestors = nx.ancestors(DG, 'z21')
+    z_31_ancestors = nx.ancestors(DG, 'z31')
+    z_37_ancestors = nx.ancestors(DG, 'z37')
 
+    pass
+    # print(f"check_wires: {','.join(sorted(check_wires))}")
 
+    # all_wires = check_wires
 
-    check_wires = check_circuit(wire_values, gates, x_wires, y_wires, z_wires)
-    print(f"check_wires: {','.join(sorted(check_wires))}")
+    # for ix, wire_group in enumerate(combinations(all_wires, 8)):
+    #     if ix > 200:
+    #         break
+    #     if ix % 100 == 0:
+    #         print(f'Checking group {ix}')
 
-    all_wires = check_wires
+    #     for swap_these_wires in get_all_pairings(tuple(wire_group)):
+    #         for wire1, wire2 in swap_these_wires:
+    #             gates = swap_wires(gates, wire1, wire2)
 
-    for ix, wire_group in enumerate(combinations(all_wires, 8)):
-        if ix > 200:
-            break
-        if ix % 100 == 0:
-            print(f'Checking group {ix}')
+    #     check_wires = check_if_circuit_is_correct(wire_values, gates, x_wires, y_wires, z_wires)
 
-        for swap_these_wires in get_all_pairings(tuple(wire_group)):
-            for wire1, wire2 in swap_these_wires:
-                gates = swap_wires(gates, wire1, wire2)
+    #     if check_wires:
+    #         print(f"Found solution: {','.join(sorted(swap_these_wires))}")
+    #         sys.exit(0)
 
-        check_wires = validate_circuit(wire_values, gates, x_wires, y_wires, z_wires)
-
-        if check_wires:
-            print(f"Found solution: {','.join(sorted(swap_these_wires))}")
-            sys.exit(0)
-
-        for wire1, wire2 in swap_these_wires:
-            gates = swap_wires(gates, wire1, wire2)
+    #     for wire1, wire2 in swap_these_wires:
+    #         gates = swap_wires(gates, wire1, wire2)
 
     print("COMPLETE")
 
